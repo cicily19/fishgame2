@@ -1,34 +1,39 @@
-Fish Bubble Shooter
-Fish Bubble Shooter is a simple yet engaging 2D arcade game developed with Python and Pygame. In this game, you control a fish that shoots bubbles to pop other bubbles and earn points. Avoid non-bouncing bubbles reaching the left side of the screen, or it’s game over!
+Fish Bubble Shooter Game
 
-Table of Contents
-Game Description
-Installation
-Game Controls
-Game Features
-License
+A simple 2D game developed using `pygame` where the player controls a fish to shoot bubbles and avoid non-bouncing bubbles. The goal is to shoot the bubbles and earn points while avoiding game-over conditions.
 
-Game Description
-Fish Bubble Shooter is a fast-paced game where your goal is to score as many points as possible by shooting bullets (small red particles) from your fish to pop randomly spawning bubbles. Some bubbles bounce vertically, adding a layer of difficulty. If a non-bouncing bubble reaches the left side of the screen, the game ends.
+ Table of Contents
+- [Game Description](#game-description)
+- [Installation](#installation)
+- [Game Controls](#game-controls)
+- [Game Features](#game-features)
+- [License](#license)
 
-Installation
-Clone the Repository
-bash
-Copy code
-git clone https://github.com/yourusername/fish-bubble-shooter.git
-Navigate to the Project Directory
+ Game Description
+
+Fish Bubble Shooter is a 2D arcade game where the player controls a fish to shoot bullets at randomly spawning bubbles. The fish moves up and down, and the bullets shoot straight right. The player earns points by popping the bubbles with the bullets, and the game ends if a non-bouncing bubble reaches the left side of the screen.
+
+ Installation
+
+1. Clone the repository or download the files:
+   ```bash
+   git clone https://github.com/yourusername/fish-bubble-shooter.git
+
+2. Navigate to the project directory:
+
 bash
 Copy code
 cd fish-bubble-shooter
-Install Required Libraries
+Install the required Python libraries:
+
 bash
 Copy code
 pip install pygame
-Run the Game
+Run the game:
+
 bash
 Copy code
 python fish_game.py
-Game Controls
 
 3. Game Controls
 Up Arrow: Move the fish up.
