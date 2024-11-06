@@ -1,204 +1,202 @@
 import pygame
-from pygame.locals import *
-from OpenGL.GL import *
-from OpenGL.GLU import *
-import numpy as np
+import random
+import sys
 
-# Initialize Pygame and OpenGL
+# Initialize pygame and constants
 pygame.init()
-window = pygame.display.set_mode((800, 600), DOUBLEBUF | OPENGL)
-pygame.display.set_caption("3D Sphere Split Animation")
+WIDTH, HEIGHT = 800, 600
+WHITE = (255, 255, 255)
+BLUE = (0, 100, 255)
+RED = (255, 0, 0)
 
-# Set up the OpenGL environment
-glEnable(GL_DEPTH_TEST)
-glClearColor(1, 1, 1, 1)  # White background
+# Game settings
+fish_speed = 7
+bubble_speed = 3
+bubble_spawn_rate = 30  # Frames between new bubbles
 
-# Set up camera (basically the position of the sphere)
-gluPerspective(45, (800 / 600), 0.1, 50.0)
-glTranslatef(0.0, 0.0, -4)
+# Initialize screen and font
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Fish Bubble Shooter")
+font = pygame.font.SysFont(None, 36)
 
-# Split distance and toggle
-split_distance = 0
-split = False
+# Game variables
+score = 0
+game_over = False
 
-# Rotation and zoom controls
-rotation_x, rotation_y = 0, 0
-zoom = -4
+# Fish setup
+fish_color = (0, 100, 255)
+fish_width, fish_height = 60, 30
+fish_rect = pygame.Rect(WIDTH // 10, HEIGHT // 2 - fish_height // 2, fish_width, fish_height)
 
-# Tree rotation angle
-tree_rotation_angle = 0
+# Bubble and particle lists
+bubbles = []
+particles = []  # For ocean effect particles
 
-# Function to create sphere vertices and colors
-def create_sphere(radius, segments, rings, top_half=True):
-    vertices = []
-    colors = []
+# Bullet setup
+bullet_image = pygame.Surface((10, 5))
+bullet_image.fill(RED)
+bullets = []
 
-    # Only render either the top or the bottom half based on top_half argument
-    for i in range(rings // 2) if top_half else range(rings // 2, rings):
-        theta1 = i * np.pi / rings
-        theta2 = (i + 1) * np.pi / rings
+# Classes
+class Bubble:
+    def _init_(self, bouncing=True):  # Corrected constructor method
+        self.image = pygame.Surface((30, 30), pygame.SRCALPHA)
+        pygame.draw.circle(self.image, WHITE, (15, 15), 15)
+        self.rect = self.image.get_rect(center=(WIDTH, random.randint(0, HEIGHT)))
+        self.bouncing = bouncing
+        if self.bouncing:
+            # Bouncing bubbles move diagonally leftward
+            self.speed_x = -bubble_speed
+            self.speed_y = random.choice([-bubble_speed, bubble_speed])
+        else:
+            self.speed_x = -bubble_speed
+            self.speed_y = 0
 
-        for j in range(segments):
-            phi1 = j * 2 * np.pi / segments
-            phi2 = (j + 1) * 2 * np.pi / segments
+    def move(self):  # Bubble movement method
+        self.rect.x += self.speed_x
+        self.rect.y += self.speed_y if self.bouncing else 0
+        # Bounce off top and bottom edges
+        if self.bouncing:
+            if self.rect.top <= 0 or self.rect.bottom >= HEIGHT:
+                self.speed_y *= -1
 
-            # First triangle
-            x1, y1, z1 = radius * np.sin(theta1) * np.cos(phi1), radius * np.cos(theta1), radius * np.sin(theta1) * np.sin(phi1)
-            x2, y2, z2 = radius * np.sin(theta2) * np.cos(phi1), radius * np.cos(theta2), radius * np.sin(theta2) * np.sin(phi1)
-            x3, y3, z3 = radius * np.sin(theta2) * np.cos(phi2), radius * np.cos(theta2), radius * np.sin(theta2) * np.sin(phi2)
+    def draw(self):  # New draw method to render the bubble on the screen
+        screen.blit(self.image, self.rect)
 
-            vertices.extend([x1, y1, z1, x2, y2, z2, x3, y3, z3])
-            colors.extend([0.0, 0.6, 0.8] * 3)
 
-            # Second triangle
-            x4, y4, z4 = radius * np.sin(theta1) * np.cos(phi2), radius * np.cos(theta1), radius * np.sin(theta1) * np.sin(phi2)
-            vertices.extend([x1, y1, z1, x3, y3, z3, x4, y4, z4])
-            colors.extend([0.0, 0.6, 0.8] * 3)
+class Bullet:
+    def _init_(self, x, y):
+        self.rect = bullet_image.get_rect(center=(x, y))
 
-    return np.array(vertices, dtype=np.float32), np.array(colors, dtype=np.float32)
+    def move(self):
+        self.rect.x += 10  # Bullet speed
 
-# Load the vertices for each half
-top_vertices, top_colors = create_sphere(1, 32, 16, top_half=True)
-bottom_vertices, bottom_colors = create_sphere(1, 32, 16, top_half=False)
+    def draw(self):
+        screen.blit(bullet_image, self.rect)
 
-# Function to draw a sphere half
-def draw_sphere_half(vertices, colors):
-    glEnableClientState(GL_VERTEX_ARRAY)
-    glEnableClientState(GL_COLOR_ARRAY)
-    glVertexPointer(3, GL_FLOAT, 0, vertices)
-    glColorPointer(3, GL_FLOAT, 0, colors)
-    glDrawArrays(GL_TRIANGLES, 0, len(vertices) // 3)
-    glDisableClientState(GL_VERTEX_ARRAY)
-    glDisableClientState(GL_COLOR_ARRAY)
 
-# Function to draw a low-poly, layered tree
-def draw_low_poly_tree():
-    global tree_rotation_angle
-    tree_rotation_angle += 1  # Rotate the tree slowly
+class Particle:
+    """Small particles moving to simulate an ocean effect."""
+    def _init_(self):
+        self.x = random.randint(0, WIDTH)
+        self.y = random.randint(0, HEIGHT)
+        self.speed_y = random.choice([-1, 1]) * random.uniform(0.5, 1.5)
+        self.size = random.randint(1, 3)
 
-    # Define layers of the tree with decreasing size as they go up
-    tree_layers = [
-        (0.5, 0.2, 0.0),  # Bottom layer (radius, height, y_offset)
-        (0.4, 0.2, 0.2),
-        (0.3, 0.2, 0.4),
-        (0.2, 0.2, 0.6)
-    ]
+    def move(self):
+        self.y += self.speed_y
+        if self.y < 0 or self.y > HEIGHT:
+            self.y = random.randint(0, HEIGHT)  # Reset position
 
-    # Rotate and draw each layer
-    for radius, height, y_offset in tree_layers:
-        glPushMatrix()
-        glRotatef(tree_rotation_angle, 0, 1, 0)  # Rotate each layer
-        glColor3f(0.0, 0.8, 0.0)  # Green color for the tree
-        glTranslatef(0, y_offset, 0)
-        draw_pyramid(radius, height)
-        glPopMatrix()
+    def draw(self):
+        pygame.draw.circle(screen, WHITE, (int(self.x), int(self.y)), self.size)
 
-    # Draw the trunk
-    glPushMatrix()
-    glColor3f(0.55, 0.27, 0.07)  # Brown color for the trunk
-    glTranslatef(0, -0.1, 0)
-    glRotatef(-90, 1, 0, 0)  # Align cylinder vertically
-    gluCylinder(gluNewQuadric(), 0.1, 0.07, 0.8, 20, 20)
-    glPopMatrix()
 
-    # Draw the star on top of the tree
-    glPushMatrix()
-    glTranslatef(0, 0.75, 0)  # Position the star above the top layer
-    draw_star(0.1)  # Draw a small star
-    glPopMatrix()
+# Functions
+def move_fish(keys):
+    if keys[pygame.K_UP] and fish_rect.top > 0:
+        fish_rect.y -= fish_speed
+    if keys[pygame.K_DOWN] and fish_rect.bottom < HEIGHT:
+        fish_rect.y += fish_speed
 
-# Function to draw a pyramid (used for each tree layer)
-def draw_pyramid(radius, height):
-    glBegin(GL_TRIANGLES)
-    for i in range(4):
-        angle = np.pi / 2 * i
-        next_angle = np.pi / 2 * (i + 1)
 
-        # Apex
-        glVertex3f(0, height, 0)
+def draw_fish():
+    pygame.draw.ellipse(screen, fish_color, fish_rect)  # Fish body
+    pygame.draw.polygon(screen, WHITE, [
+        (fish_rect.left, fish_rect.centery),
+        (fish_rect.left - 15, fish_rect.centery - 10),
+        (fish_rect.left - 15, fish_rect.centery + 10)
+    ])  # Fish tail
+    pygame.draw.circle(screen, WHITE, (fish_rect.right - 10, fish_rect.centery - 5), 3)  # Fish eye
 
-        # Base corners
-        glVertex3f(radius * np.cos(angle), 0, radius * np.sin(angle))
-        glVertex3f(radius * np.cos(next_angle), 0, radius * np.sin(next_angle))
-    glEnd()
 
-# Function to draw a small 3D star on top of the tree
-def draw_star(size):
-    glBegin(GL_TRIANGLES)
-    glColor3f(1.0, 0.84, 0.0)  # Gold color for the star
+def draw_ocean_background():
+    """Draws a gradient background and moving particles for an ocean effect."""
+    for i in range(HEIGHT):
+        color = (0, 0, int(50 + (i / HEIGHT) * 100))  # Gradient blue
+        pygame.draw.line(screen, color, (0, i), (WIDTH, i))
+    # Draw particles
+    for particle in particles:
+        particle.move()
+        particle.draw()
 
-    # Define vertices for a simple 3D star shape
-    for angle in range(0, 360, 72):  # Five points of the star
-        angle_rad = np.radians(angle)
-        next_angle_rad = np.radians(angle + 144)  # Skip to create star effect
 
-        # Center point
-        glVertex3f(0, size, 0)
+def spawn_bubble():
+    # Randomly decide if a bubble is bouncing or moving straight left
+    bouncing = random.choice([True, False])
+    if random.randint(0, bubble_spawn_rate) == 0:
+        bubbles.append(Bubble(bouncing))
 
-        # Two outer points
-        glVertex3f(size * np.cos(angle_rad), 0, size * np.sin(angle_rad))
-        glVertex3f(size * np.cos(next_angle_rad), 0, size * np.sin(next_angle_rad))
-    glEnd()
 
-# Main loop
-running = True
-while running:
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-        elif event.type == MOUSEBUTTONDOWN and event.button == 1:
-            split = not split
-            if not split:
-                split_distance = 0  # Reset split distance if we are merging back
-        elif event.type == MOUSEMOTION:
-            # Rotate the sphere based on mouse movement
-            if pygame.mouse.get_pressed()[0]:
-                rotation_x += event.rel[1]  # Rotate along x-axis
-                rotation_y += event.rel[0]  # Rotate along y-axis
-        elif event.type == MOUSEBUTTONDOWN:
-            # Zoom in/out with scroll wheel
-            if event.button == 4:  # Scroll up
-                zoom += 0.2
-            elif event.button == 5:  # Scroll down
-                zoom -= 0.2
+def move_bubbles():
+    global bubbles, game_over
+    for bubble in bubbles:
+        bubble.move()
+        if bubble.rect.left <= 0 and not bubble.bouncing:
+            game_over = True  # End game if a non-bouncing bubble reaches the left side
+    bubbles = [bubble for bubble in bubbles if bubble.rect.x > 0]  # Remove bubbles out of screen
 
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
-    # Apply the camera transformations
-    glLoadIdentity()
-    gluPerspective(45, (800 / 600), 0.1, 50.0)
-    glTranslatef(0.0, 0.0, zoom)  # Zoom control
-    glRotatef(rotation_x, 1, 0, 0)  # Rotate x
-    glRotatef(rotation_y, 0, 1, 0)  # Rotate y
+def move_bullets():
+    global bullets, score
+    for bullet in bullets:
+        bullet.move()
+        for bubble in bubbles[:]:
+            if bullet.rect.colliderect(bubble.rect):
+                bubbles.remove(bubble)
+                bullets.remove(bullet)
+                score += 1
+                break
+    bullets = [bullet for bullet in bullets if bullet.rect.x < WIDTH]
 
-    # Apply the split animation
-    if split:
-        if split_distance < 1.5:  # Max split distance
-            split_distance += 0.05
-    else:
-        if split_distance > 0:  # Merging animation
-            split_distance -= 0.05
 
-    # Draw the top half
-    glPushMatrix()
-    glTranslatef(0, split_distance / 2, 0)  # Move up
-    draw_sphere_half(top_vertices, top_colors)
-    glPopMatrix()
+def draw_elements():
+    draw_ocean_background()
+    draw_fish()
+    for bubble in bubbles:
+        bubble.draw()
+    for bullet in bullets:
+        bullet.draw()
+    score_text = font.render(f"Score: {score}", True, WHITE)
+    screen.blit(score_text, (10, 10))
 
-    # Draw the bottom half
-    glPushMatrix()
-    glTranslatef(0, -split_distance / 2, 0)  # Move down
-    draw_sphere_half(bottom_vertices, bottom_colors)
-    glPopMatrix()
 
-    # Draw the tree in between the two halves
-    if split:
-        glPushMatrix()
-        glTranslatef(0, -0.25, 0)  # Position tree
-        draw_low_poly_tree()
-        glPopMatrix()
+def display_game_over():
+    game_over_text = font.render(f"Game Over! Score: {score}", True, WHITE)
+    screen.blit(game_over_text, (WIDTH // 2 - 100, HEIGHT // 2))
 
-    pygame.display.flip()
-    pygame.time.wait(10)
 
-pygame.quit()
+# Main game loop
+def main():
+    global game_over
+    clock = pygame.time.Clock()
+
+    # Initialize particles for the ocean background
+    for _ in range(50):
+        particles.append(Particle())
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.KEYDOWN and not game_over:
+                if event.key == pygame.K_SPACE:
+                    # Shoot a bullet from the fish's position
+                    bullets.append(Bullet(fish_rect.right, fish_rect.centery))
+
+        if not game_over:
+            keys = pygame.key.get_pressed()
+            move_fish(keys)
+            spawn_bubble()
+            move_bubbles()
+            move_bullets()
+            draw_elements()
+        else:
+            display_game_over()
+
+        pygame.display.flip()
+        clock.tick(30)
+
+if _name_ == "_main_":
+    main()
