@@ -4,11 +4,12 @@ Interactive Tree Model: A rotating low-poly tree appears in between the sphere h
 Background Music: Christmas-themed background music plays while the sphere is split.
 User Interaction: Toggle sphere split, rotate view, and zoom in/out using mouse interactions.
 
-Requirements
-Python 3.x
-Pygame
-PyOpenGL
-NumPy
+Requirements:
+Python 3.x,
+Pygame,
+PyOpenGL,
+NumPy,
+
 Installation
 Clone the Repository
 Command: git clone https://github.com/your-username/3d-sphere-split-animation.git
