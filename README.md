@@ -21,19 +21,16 @@ Fish Bubble Shooter is a 2D arcade game where the player controls a fish to shoo
 
 2. Navigate to the project directory:
 
-bash
-Copy code
-cd fish-bubble-shooter
-Install the required Python libraries:
+   ```bash
+   cd fish-bubble-shooter
+   Install the required Python libraries:
+   pip install pygame
+   
+  Run the game:
 
-bash
-Copy code
-pip install pygame
-Run the game:
-
-bash
-Copy code
-python fish_game.py
+    ```bash
+    Copy code
+    python fish_game.py
 
 3. Game Controls
 Up Arrow: Move the fish up.
