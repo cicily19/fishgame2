@@ -50,14 +50,14 @@ This project is open-source and available under the MIT License.
 
 Key Sections of the README:
 Game Description: A concise explanation of the game mechanics and objectives.
-Installation: Clear instructions for setting up and running the game.
-Game Controls: A list of controls for interacting with the game.
-Game Features: Highlights the unique features and functionalities of the game.
-License: Specifies the open-source license for the project.
-Feel free to adjust the details as per your preferences or any additional features you may add!
 
-vbnet
-Copy code
+Installation: Clear instructions for setting up and running the game.
+
+Game Controls: A list of controls for interacting with the game.
+
+Game Features: Highlights the unique features and functionalities of the game.
+
+Feel free to adjust the details as per your preferences or any additional features you may add!
 
 This version retains the structure you requested and organizes the necessary details clearly. Let me know if you want further adjustments!
 
